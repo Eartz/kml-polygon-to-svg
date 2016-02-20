@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test in paperjs</title>
+</head>
+<body>
+    <canvas id="cont" width="500" height="500"></canvas>
+    <script src="../../node_modules/paper/dist/paper-core.min.js"></script>
+    <script>
+    document.addEventListener("DOMContentLoaded", function() {
+        paper.setup(document.getElementById("cont"));
+        paper.project.importSVG("../output/output_2.svg", {
+            onImport: function(node, item) {
+                item.fillColor = new paper.Color(1, 0, 0);
+                item.strokeColor = new paper.Color(0, 0, 0);
+            },
+            onLoad: function(item) {
+                item.fitBounds(paper.project.view.bounds);
+                console.log(paper.project.view);
+                item.visible = true;
+                item.scale(1, -1); // mirror
+                // item.shear(10, 10);
+                paper.project.view.draw;
+                console.log(item);
+            }
+        });
+    });
+    </script>
+</body>
+</html>
