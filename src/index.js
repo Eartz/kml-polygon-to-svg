@@ -1,11 +1,14 @@
 var libxmljs = require("libxmljs");
-var r = 6371; // rayon de la terre en km
-// x = r λ cos(φ0)
-// y = r φ
+var r = 6371; // Earth radius in km
+
+
 function degToRad(degrees) {
   return degrees * Math.PI / 180;
 }
- 
+
+// equirectangular projection :
+// x = r λ cos(φ0)
+// y = r φ
 function x(λ, φ0) {
     return r * degToRad(λ) * Math.cos(degToRad(φ0));
 }
@@ -19,11 +22,10 @@ module.exports = function(kml, φ0) {
         minY: false,
         maxY: false
     };
-    console.log("phi0", φ0);
     var kmlPolygons = [];
     var doc = libxmljs.parseXml(kml);
 
-    // recuperer les polygones
+    // Find polygons anywhere
     var polygons = doc.find('//kml:Polygon', {kml: "http://www.opengis.net/kml/2.2"});
 
     if (polygons.length > 0) {
@@ -33,8 +35,8 @@ module.exports = function(kml, φ0) {
                 points: []
             };
 
-            // commuler les nodes coordinates
-            var coords = polygons[i].find("//kml:coordinates", {kml: "http://www.opengis.net/kml/2.2"})
+            // get coordinates
+            var coords = polygons[i].find(".//kml:coordinates", {kml: "http://www.opengis.net/kml/2.2"})
                         .reduce(function(val, node) {
                                 return val + node.text().trim();
                         }, "");
@@ -78,22 +80,22 @@ module.exports = function(kml, φ0) {
     }
 
     
-    console.log("boundaries", view);
     // on a les limites : calculer le ratio pour trouver le nouveau referentiel pour le svg
-    var multiplier = 100;
+    var multiplier = 100; // work with bigger values
     var Xdiff = 0;
-    if (view.minX < 0) Xdiff = 1 - view.minX;
+    if (view.minX < 0) Xdiff = 0 - view.minX;
     else if (view.minX > 0) Xdiff = 0 - view.minX;
     var Ydiff = 0;
-    if (view.minY < 0) Ydiff = 1 - view.minY;
+    if (view.minY < 0) Ydiff = 0 - view.minY;
     else if (view.minY > 0) Ydiff = 0 - view.minY;
     console.log("Xdiff:", Xdiff, "Ydiff:", Ydiff);
-    console.log("NewBoundaries", {
+    var newBoundaries = {
         minX: (view.minX + Xdiff) * multiplier,
         maxX: (view.maxX + Xdiff) * multiplier,
         minY: (view.minY + Ydiff) * multiplier,
         maxY: (view.maxY + Ydiff) * multiplier
-    });
+    };
+    // console.log("NewBoundaries", newBoundaries);
     // convertir tous les points sur le nouveau referentiel
     kmlPolygons = kmlPolygons.map(function(v) {
         return {
@@ -104,17 +106,28 @@ module.exports = function(kml, φ0) {
                     y: (vv.y + Ydiff) * multiplier,
                     z: (vv.z)
                 };
-                // return {
-                //     x: vv.x,
-                //     y: vv.y,
-                //     z: (vv.z)
-                // };
             })
         };
     });
     
     var svg = new libxmljs.Document();
-    var g = svg.node("svg")
+    svg.setDtd('svg', "-//W3C//DTD SVG 1.0//EN", "http://www.w3.org/TR/2001/REC-SVG-20010904/DTD/svg10.dtd");
+
+    var longest = newBoundaries.maxX;
+    if (newBoundaries.maxX < newBoundaries.maxY) {
+        longest = newBoundaries.maxY;
+    }
+    var g = svg.node("svg").attr({
+        version: "1.0",
+        id: "Calque_1",
+        xmlns: "http://www.w3.org/2000/svg",
+        "xmlns:xlink": "http://www.w3.org/1999/xlink",
+        overflow: "visible",
+        "xml:space": "preserve",
+        width: "" + longest,
+        height: "" + longest,
+        viewBox: "0 0 " + longest + " " + longest
+    })
         .node("g");
     kmlPolygons.map(function(v, k) {
         var pathData = "";
@@ -131,8 +144,7 @@ module.exports = function(kml, φ0) {
             id: "poly_" + k,
             d: pathData
         }));
-        // svg.node("path").attr({id: "poly_" + k, d: pathData});
     });
-    // creer le svg
+    
     return svg.toString();
 };
