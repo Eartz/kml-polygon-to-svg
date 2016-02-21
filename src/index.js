@@ -2,7 +2,7 @@ import libxmljs from "libxmljs";
 import projections from "./projections.js";
 
 
-module.exports = (kml, φ0) => {
+export default function (kml, φ0) {
     const view = {
         minX: false,
         maxX: false,

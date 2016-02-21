@@ -1,4 +1,4 @@
-var KPTS = require("../dist/index.js");
+var KPTS = require("../dist/index.js").default;
 var fs = require("fs");
 
 

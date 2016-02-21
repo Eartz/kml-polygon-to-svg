@@ -1,16 +1,10 @@
 "use strict";
 
-var _libxmljs = require("libxmljs");
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
 
-var _libxmljs2 = _interopRequireDefault(_libxmljs);
-
-var _projections = require("./projections.js");
-
-var _projections2 = _interopRequireDefault(_projections);
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-module.exports = function (kml, φ0) {
+exports.default = function (kml, φ0) {
     var view = {
         minX: false,
         maxX: false,
@@ -151,3 +145,15 @@ module.exports = function (kml, φ0) {
     });
     return svg.toString();
 };
+
+var _libxmljs = require("libxmljs");
+
+var _libxmljs2 = _interopRequireDefault(_libxmljs);
+
+var _projections = require("./projections.js");
+
+var _projections2 = _interopRequireDefault(_projections);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+;
