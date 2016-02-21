@@ -2,16 +2,17 @@
   "name": "kml-polygon-to-svg",
   "version": "0.1.0",
   "description": "Convert flat KML polygons to SVG Paths",
-  "main": "index.js",
+  "main": "dist/index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "Camille Hodoul <camille.hodoul@gmail.com> (http://twitter.com/Eartz_HC)",
-  "license": "ISC",
+  "license": "GPL",
   "devDependencies": {
     "babel": "^6.5.2",
     "babel-preset-es2015": "^6.5.0",
     "gulp": "^3.9.1",
+    "gulp-babel": "^6.1.2",
     "gulp-mocha": "^2.2.0",
     "mocha": "^2.4.5"
   },
