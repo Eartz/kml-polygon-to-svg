@@ -31,7 +31,7 @@ export default function (kml, φ0) {
                         .reduce(function(val, node) {
                                 return val + node.text().trim();
                         }, "");
-            let points = coords.split(' ');
+            let points = coords.replace(/\t+/m, " ").split(' ');
             for (var j = 0, pl = points.length; j < pl; j++) {
                 var point = points[j].split(',');
 
