@@ -4,15 +4,18 @@ Object.defineProperty(exports, "__esModule", {
     value: true
 });
 
-exports.default = function (kml, φ0) {
+exports.default = function (kml, options) {
     var view = {
         minX: false,
         maxX: false,
         minY: false,
         maxY: false
     };
-    var proj = _projections2.default.equirectangular;
-    var dataPrefix = "data-";
+    var settings = _lodash2.default.extend({}, defaultOptions, options);
+    var proj = _projections2.default[settings.projection];
+    var φ0 = settings.φ0;
+    var dataPrefix = settings.dataPrefix;
+
     var kmlPlacemarks = [];
     var doc = _libxmljs2.default.parseXml(kml);
 
@@ -135,7 +138,7 @@ exports.default = function (kml, φ0) {
         longest = newBoundaries.maxY;
     }
     var g = svg.node("svg").attr({
-        version: "1.0",
+        version: "1.1",
         id: "Calque_1",
         xmlns: "http://www.w3.org/2000/svg",
         "xmlns:xlink": "http://www.w3.org/1999/xlink",
@@ -184,4 +187,9 @@ var _lodash2 = _interopRequireDefault(_lodash);
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
+var defaultOptions = {
+    φ0: 42, // used in equirectangular projection
+    projection: "mercator",
+    dataPrefix: "data-"
+};
 ;

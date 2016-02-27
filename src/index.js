@@ -2,16 +2,24 @@ import libxmljs from "libxmljs";
 import projections from "./projections.js";
 import _ from "lodash";
 
-
-export default function (kml, φ0) {
+const defaultOptions = {
+    φ0: 42, // used in equirectangular projection
+    projection: "mercator",
+    dataPrefix: "data-"
+};
+export default function (kml, options) {
     const view = {
         minX: false,
         maxX: false,
         minY: false,
         maxY: false
     };
-    const proj = projections.equirectangular;
-    const dataPrefix = "data-";
+    const settings = _.extend({}, defaultOptions, options);
+    const proj = projections[settings.projection];
+    const φ0 = settings.φ0;
+    const dataPrefix = settings.dataPrefix;
+
+
     let kmlPlacemarks = [];
     const doc = libxmljs.parseXml(kml);
 
@@ -35,7 +43,7 @@ export default function (kml, φ0) {
                 // get coordinates
                 let coords = polygons[i].find(".//kml:coordinates", {kml: "http://www.opengis.net/kml/2.2"})
                             .reduce(function(val, node) {
-                                    return val + node.text().trim();
+                                return val + node.text().trim();
                             }, "");
                 let points = coords.replace(/\t+/m, " ").split(' ');
                 for (var j = 0, pl = points.length; j < pl; j++) {
@@ -136,7 +144,7 @@ export default function (kml, φ0) {
         longest = newBoundaries.maxY;
     }
     const g = svg.node("svg").attr({
-        version: "1.0",
+        version: "1.1",
         id: "Calque_1",
         xmlns: "http://www.w3.org/2000/svg",
         "xmlns:xlink": "http://www.w3.org/1999/xlink",
