@@ -12,65 +12,83 @@ exports.default = function (kml, φ0) {
         maxY: false
     };
     var proj = _projections2.default.equirectangular;
-
-    // TODO : work at Placemark level, and not Polygon level, so that I can
-    // copy the Placemark data in the final SVG
-    var kmlPolygons = [];
+    var dataPrefix = "data-";
+    var kmlPlacemarks = [];
     var doc = _libxmljs2.default.parseXml(kml);
 
     // Find polygons anywhere
-    var polygons = doc.find('//kml:Polygon', { kml: "http://www.opengis.net/kml/2.2" });
+    var placemarks = doc.find('//kml:Placemark', { kml: "http://www.opengis.net/kml/2.2" });
 
-    if (polygons.length > 0) {
-        for (var i = 0, l = polygons.length; i < l; i++) {
-            var tempKmlPolygon = {
-                data: {},
-                points: []
-            };
+    // parse the kml and store it's content in plain objects
+    _lodash2.default.each(placemarks, function (placemark, indexPlacemark) {
+        var kmlPlacemark = {
+            polygons: [],
+            extendedData: []
+        };
+        // store polygon data
+        var polygons = placemark.find('.//kml:Polygon', { kml: "http://www.opengis.net/kml/2.2" });
+        if (polygons.length > 0) {
+            for (var i = 0, l = polygons.length; i < l; i++) {
+                var tempKmlPolygon = {
+                    points: []
+                };
 
-            // get coordinates
-            var coords = polygons[i].find(".//kml:coordinates", { kml: "http://www.opengis.net/kml/2.2" }).reduce(function (val, node) {
-                return val + node.text().trim();
-            }, "");
-            var points = coords.split(' ');
-            for (var j = 0, pl = points.length; j < pl; j++) {
-                var point = points[j].split(',');
+                // get coordinates
+                var coords = polygons[i].find(".//kml:coordinates", { kml: "http://www.opengis.net/kml/2.2" }).reduce(function (val, node) {
+                    return val + node.text().trim();
+                }, "");
+                var points = coords.replace(/\t+/m, " ").split(' ');
+                for (var j = 0, pl = points.length; j < pl; j++) {
+                    var point = points[j].split(',');
 
-                // Apply the projection
-                point[0] = proj.x(Number(point[0]), φ0);
-                point[1] = proj.y(Number(point[1]));
-                // 0: x, 1: y, 2: z
-                // Store the smallest and biggest coords to find out what the viewport is
-                if (view.minX === false || Number(point[0]) < view.minX) {
-                    if (!isNaN(Number(point[0]))) {
-                        view.minX = Number(point[0]);
+                    // Apply the projection
+                    point[0] = proj.x(Number(point[0]), φ0);
+                    point[1] = proj.y(Number(point[1]));
+                    // 0: x, 1: y, 2: z
+                    // Store the smallest and biggest coords to find out what the viewport is
+                    if (view.minX === false || point[0] < view.minX) {
+                        if (!isNaN(point[0])) {
+                            view.minX = point[0];
+                        }
                     }
-                }
-                if (view.maxX === false || Number(point[0]) > view.maxX) {
-                    if (!isNaN(Number(point[0]))) {
-                        view.maxX = Number(point[0]);
+                    if (view.maxX === false || point[0] > view.maxX) {
+                        if (!isNaN(point[0])) {
+                            view.maxX = point[0];
+                        }
                     }
-                }
-                if (view.minY === false || Number(point[1]) < view.minY) {
-                    if (!isNaN(Number(point[1]))) {
-                        view.minY = Number(point[1]);
+                    if (view.minY === false || point[1] < view.minY) {
+                        if (!isNaN(point[1])) {
+                            view.minY = point[1];
+                        }
                     }
-                }
-                if (view.maxY === false || Number(point[1]) > view.maxY) {
-                    if (!isNaN(Number(point[1]))) {
-                        view.maxY = Number(point[1]);
+                    if (view.maxY === false || point[1] > view.maxY) {
+                        if (!isNaN(point[1])) {
+                            view.maxY = point[1];
+                        }
                     }
+                    tempKmlPolygon.points.push({
+                        x: point[0],
+                        y: point[1],
+                        z: Number(point[2])
+                    });
                 }
-                tempKmlPolygon.points.push({
-                    x: Number(point[0]),
-                    y: Number(point[1]),
-                    z: Number(point[2])
-                });
+
+                kmlPlacemark.polygons.push(tempKmlPolygon);
             }
-
-            kmlPolygons.push(tempKmlPolygon);
         }
-    }
+        // store extended data
+        var datas = placemark.find('.//kml:Data', { kml: "http://www.opengis.net/kml/2.2" });
+        if (datas.length > 0) {
+            kmlPlacemark.extendedData = _lodash2.default.map(datas, function (data) {
+                return {
+                    name: data.attr('name').value(),
+                    content: _lodash2.default.trim(data.text(), " \r\n\t")
+                };
+            });
+        }
+
+        kmlPlacemarks.push(kmlPlacemark);
+    });
 
     // Remove negative values, we want (0,0) to be the top left corner, not the center
     var multiplier = 100; // work with bigger values
@@ -94,18 +112,20 @@ exports.default = function (kml, φ0) {
         maxY: (view.maxY + Ydiff) * multiplier
     };
 
-    kmlPolygons = kmlPolygons.map(function (v) {
-        return {
-            data: v.data,
-            points: v.points.map(function (vv) {
-                return {
-                    x: (vv.x + Xdiff) * multiplier,
-                    y: (vv.y + Ydiff) * multiplier,
-                    z: vv.z
-                };
-            })
-        };
+    _lodash2.default.each(kmlPlacemarks, function (kmlPlacemark) {
+        kmlPlacemark.polygons = _lodash2.default.map(kmlPlacemark.polygons, function (v) {
+            return {
+                points: v.points.map(function (vv) {
+                    return {
+                        x: (vv.x + Xdiff) * multiplier,
+                        y: (vv.y + Ydiff) * multiplier,
+                        z: vv.z
+                    };
+                })
+            };
+        });
     });
+
     // output
     var svg = new _libxmljs2.default.Document();
     svg.setDtd('svg', "-//W3C//DTD SVG 1.0//EN", "http://www.w3.org/TR/2001/REC-SVG-20010904/DTD/svg10.dtd");
@@ -125,24 +145,28 @@ exports.default = function (kml, φ0) {
         height: "" + longest,
         viewBox: "0 0 " + longest + " " + longest
     }).node("g");
-    kmlPolygons.map(function (v, k) {
-        var pathData = "";
-        v.points.map(function (vv, kk) {
-            var command = "M"; // if this is the first point of the polygon, to a MoveTo command
-            if (kk > 1) {
-                command = "L"; // else, LineTo
-            }
-            pathData += " " + command + " ";
-            pathData += vv.x + "," + vv.y;
+    // write placemarks as <path> elements
+    _lodash2.default.each(kmlPlacemarks, function (placemark, k) {
+        var attrs = {};
+        _lodash2.default.each(placemark.extendedData, function (data) {
+            attrs[dataPrefix + data.name] = data.content;
         });
-        pathData += " z";
-
-        // TODO : pass Placemark data in custom attributes 'data-...'
-        g.addChild(new _libxmljs2.default.Element(svg, "path").attr({
-            id: "poly_" + k,
-            d: pathData
-        }));
+        // each polygon has all the placemark data... maybe group them in <g> ?
+        _lodash2.default.each(placemark.polygons, function (polygon, kk) {
+            var pathData = _lodash2.default.reduce(polygon.points, function (path, point, index) {
+                var command = "M";
+                if (index > 0) {
+                    command = "L";
+                }
+                return path + " " + command + " " + point.x + "," + point.y;
+            }, "") + " z";
+            g.addChild(new _libxmljs2.default.Element(svg, "path").attr(_lodash2.default.extend({}, attrs, {
+                id: "poly_" + k + "_" + kk,
+                d: pathData
+            })));
+        });
     });
+
     return svg.toString();
 };
 
@@ -153,6 +177,10 @@ var _libxmljs2 = _interopRequireDefault(_libxmljs);
 var _projections = require("./projections.js");
 
 var _projections2 = _interopRequireDefault(_projections);
+
+var _lodash = require("lodash");
+
+var _lodash2 = _interopRequireDefault(_lodash);
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 

@@ -11,6 +11,7 @@
         paper.setup(document.getElementById("cont"));
         paper.project.importSVG("../output/output_2.svg", {
             onImport: function(node, item) {
+                console.log(node);
                 item.fillColor = new paper.Color(1, 0, 0);
                 item.strokeColor = new paper.Color(0, 0, 0);
             },
