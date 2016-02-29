@@ -40,7 +40,7 @@ exports.default = function (kml, options) {
                 var coords = polygons[i].find(".//kml:coordinates", { kml: "http://www.opengis.net/kml/2.2" }).reduce(function (val, node) {
                     return val + node.text().trim();
                 }, "");
-                var points = coords.replace(/\t+/m, " ").split(' ');
+                var points = coords.replace(/\t+/gm, " ").replace(/\n+/gm, " ").split(' ');
                 for (var j = 0, pl = points.length; j < pl; j++) {
                     var point = points[j].split(',');
 

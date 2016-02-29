@@ -45,7 +45,7 @@ export default function (kml, options) {
                             .reduce(function(val, node) {
                                 return val + node.text().trim();
                             }, "");
-                let points = coords.replace(/\t+/m, " ").split(' ');
+                let points = coords.replace(/\t+/gm, " ").replace(/\n+/gm, " ").split(' ');
                 for (var j = 0, pl = points.length; j < pl; j++) {
                     var point = points[j].split(',');
 
