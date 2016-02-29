@@ -31,52 +31,65 @@ exports.default = function (kml, options) {
         // store polygon data
         var polygons = placemark.find('.//kml:Polygon', { kml: "http://www.opengis.net/kml/2.2" });
         if (polygons.length > 0) {
-            for (var i = 0, l = polygons.length; i < l; i++) {
+            var _loop = function _loop() {
                 var tempKmlPolygon = {
                     points: []
                 };
 
                 // get coordinates
-                var coords = polygons[i].find(".//kml:coordinates", { kml: "http://www.opengis.net/kml/2.2" }).reduce(function (val, node) {
-                    return val + node.text().trim();
-                }, "");
-                var points = coords.replace(/\t+/gm, " ").replace(/\n+/gm, " ").split(' ');
-                for (var j = 0, pl = points.length; j < pl; j++) {
-                    var point = points[j].split(',');
+                var coordsGroups = polygons[i].find(".//kml:coordinates", { kml: "http://www.opengis.net/kml/2.2" }).map(function (node) {
+                    return node.text().trim();
+                });
+                _lodash2.default.each(coordsGroups, function (coords) {
+                    var points = coords.replace(/\t+/gm, " ").replace(/\n+/gm, " ").split(' ');
+                    for (var j = 0, pl = points.length; j < pl; j++) {
+                        var point = points[j].split(',');
 
-                    // Apply the projection
-                    point[0] = proj.x(Number(point[0]), φ0);
-                    point[1] = proj.y(Number(point[1]));
-                    // 0: x, 1: y, 2: z
-                    // Store the smallest and biggest coords to find out what the viewport is
-                    if (view.minX === false || point[0] < view.minX) {
-                        if (!isNaN(point[0])) {
-                            view.minX = point[0];
+                        // Apply the projection
+                        point[0] = proj.x(Number(point[0]), φ0);
+                        point[1] = proj.y(Number(point[1]));
+                        // 0: x, 1: y, 2: z
+                        // Store the smallest and biggest coords to find out what the viewport is
+                        if (view.minX === false || point[0] < view.minX) {
+                            if (!isNaN(point[0])) {
+                                view.minX = point[0];
+                            }
                         }
-                    }
-                    if (view.maxX === false || point[0] > view.maxX) {
-                        if (!isNaN(point[0])) {
-                            view.maxX = point[0];
+                        if (view.maxX === false || point[0] > view.maxX) {
+                            if (!isNaN(point[0])) {
+                                view.maxX = point[0];
+                            }
                         }
-                    }
-                    if (view.minY === false || point[1] < view.minY) {
-                        if (!isNaN(point[1])) {
-                            view.minY = point[1];
+                        if (view.minY === false || point[1] < view.minY) {
+                            if (!isNaN(point[1])) {
+                                view.minY = point[1];
+                            }
                         }
-                    }
-                    if (view.maxY === false || point[1] > view.maxY) {
-                        if (!isNaN(point[1])) {
-                            view.maxY = point[1];
+                        if (view.maxY === false || point[1] > view.maxY) {
+                            if (!isNaN(point[1])) {
+                                view.maxY = point[1];
+                            }
                         }
+                        // LineTo ou MoveTo
+                        var pointType = "L";
+                        if (j <= 0) {
+                            // si premier point, moveTo
+                            pointType = "M";
+                        }
+                        tempKmlPolygon.points.push({
+                            x: point[0],
+                            y: point[1],
+                            z: Number(point[2]),
+                            type: pointType
+                        });
                     }
-                    tempKmlPolygon.points.push({
-                        x: point[0],
-                        y: point[1],
-                        z: Number(point[2])
-                    });
-                }
+                });
 
                 kmlPlacemark.polygons.push(tempKmlPolygon);
+            };
+
+            for (var i = 0, l = polygons.length; i < l; i++) {
+                _loop();
             }
         }
         // store extended data
@@ -122,7 +135,8 @@ exports.default = function (kml, options) {
                     return {
                         x: (vv.x + Xdiff) * multiplier,
                         y: (vv.y + Ydiff) * multiplier,
-                        z: vv.z
+                        z: vv.z,
+                        type: vv.type
                     };
                 })
             };
@@ -157,10 +171,7 @@ exports.default = function (kml, options) {
         // each polygon has all the placemark data... maybe group them in <g> ?
         _lodash2.default.each(placemark.polygons, function (polygon, kk) {
             var pathData = _lodash2.default.reduce(polygon.points, function (path, point, index) {
-                var command = "M";
-                if (index > 0) {
-                    command = "L";
-                }
+                var command = point.type;
                 return path + " " + command + " " + point.x + "," + point.y;
             }, "") + " z";
             g.addChild(new _libxmljs2.default.Element(svg, "path").attr(_lodash2.default.extend({}, attrs, {

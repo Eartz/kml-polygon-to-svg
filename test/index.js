@@ -2,7 +2,7 @@ var KPTS = require("../dist/index.js").default;
 var fs = require("fs");
 
 
-var kmlFileName = "./65_v2.7.kml";
+var kmlFileName = "./paca.kml";
 var outputFileName = "./output/output_2.svg";
 
 var kml = fs.readFileSync(kmlFileName, 'utf8');

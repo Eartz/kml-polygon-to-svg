@@ -41,45 +41,54 @@ export default function (kml, options) {
                 };
 
                 // get coordinates
-                let coords = polygons[i].find(".//kml:coordinates", {kml: "http://www.opengis.net/kml/2.2"})
-                            .reduce(function(val, node) {
-                                return val + node.text().trim();
-                            }, "");
-                let points = coords.replace(/\t+/gm, " ").replace(/\n+/gm, " ").split(' ');
-                for (var j = 0, pl = points.length; j < pl; j++) {
-                    var point = points[j].split(',');
+                let coordsGroups = polygons[i].find(".//kml:coordinates", {kml: "http://www.opengis.net/kml/2.2"})
+                            .map((node) => {
+                                return node.text().trim();
+                            });
+                _.each(coordsGroups, (coords) => {
+                    let points = coords.replace(/\t+/gm, " ").replace(/\n+/gm, " ").split(' ');
+                    for (var j = 0, pl = points.length; j < pl; j++) {
+                        var point = points[j].split(',');
 
-                    // Apply the projection
-                    point[0] = proj.x(Number(point[0]), φ0);
-                    point[1] = proj.y(Number(point[1]));
-                    // 0: x, 1: y, 2: z
-                    // Store the smallest and biggest coords to find out what the viewport is
-                    if ((view.minX === false) || (point[0] < view.minX)) {
-                        if (!isNaN(point[0])) {
-                            view.minX = point[0];
+                        // Apply the projection
+                        point[0] = proj.x(Number(point[0]), φ0);
+                        point[1] = proj.y(Number(point[1]));
+                        // 0: x, 1: y, 2: z
+                        // Store the smallest and biggest coords to find out what the viewport is
+                        if ((view.minX === false) || (point[0] < view.minX)) {
+                            if (!isNaN(point[0])) {
+                                view.minX = point[0];
+                            }
                         }
-                    }
-                    if ((view.maxX === false) || (point[0] > view.maxX)) {
-                        if (!isNaN(point[0])) {
-                            view.maxX = point[0];
+                        if ((view.maxX === false) || (point[0] > view.maxX)) {
+                            if (!isNaN(point[0])) {
+                                view.maxX = point[0];
+                            }
                         }
-                    }
-                    if ((view.minY === false) || (point[1] < view.minY)) {
-                        if (!isNaN(point[1])) {
-                            view.minY = point[1];
+                        if ((view.minY === false) || (point[1] < view.minY)) {
+                            if (!isNaN(point[1])) {
+                                view.minY = point[1];
+                            }
                         }
-                    }
-                    if ((view.maxY === false) || (point[1] > view.maxY)) {
-                        if (!isNaN(point[1])) {
-                            view.maxY = point[1];
+                        if ((view.maxY === false) || (point[1] > view.maxY)) {
+                            if (!isNaN(point[1])) {
+                                view.maxY = point[1];
+                            }
                         }
+                        // LineTo ou MoveTo
+                        let pointType = "L";
+                        if (j <= 0) { // si premier point, moveTo
+                            pointType = "M";
+                        }
+                        tempKmlPolygon.points.push({
+                            x: point[0],
+                            y: point[1],
+                            z: Number(point[2]),
+                            type: pointType
+                        });
                     }
-                    tempKmlPolygon.points.push({
-                        x: point[0],
-                        y: point[1],
-                        z: Number(point[2])
-                    });
-                }
+                });
+
 
                 kmlPlacemark.polygons.push(tempKmlPolygon);
             }
@@ -127,7 +136,8 @@ export default function (kml, options) {
                     return {
                         x: (vv.x + Xdiff) * multiplier,
                         y: (vv.y + Ydiff) * multiplier,
-                        z: (vv.z)
+                        z: (vv.z),
+                        type: vv.type
                     };
                 })
             };
@@ -164,10 +174,7 @@ export default function (kml, options) {
         // each polygon has all the placemark data... maybe group them in <g> ?
         _.each(placemark.polygons, (polygon, kk) => {
             let pathData = _.reduce(polygon.points, (path, point, index) => {
-                let command = "M";
-                if (index > 0) {
-                    command = "L";
-                }
+                let command = point.type;
                 return path + " " + command + " " + point.x + "," + point.y;
             }, "") + " z";
             g.addChild(new libxmljs.Element(svg, "path")
