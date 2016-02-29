@@ -14,6 +14,29 @@ export default function (kml, options) {
         minY: false,
         maxY: false
     };
+    const updateView = (point) => {
+        // Store the smallest and biggest coords to find out what the viewport is
+        if ((view.minX === false) || (point[0] < view.minX)) {
+            if (!isNaN(point[0])) {
+                view.minX = point[0];
+            }
+        }
+        if ((view.maxX === false) || (point[0] > view.maxX)) {
+            if (!isNaN(point[0])) {
+                view.maxX = point[0];
+            }
+        }
+        if ((view.minY === false) || (point[1] < view.minY)) {
+            if (!isNaN(point[1])) {
+                view.minY = point[1];
+            }
+        }
+        if ((view.maxY === false) || (point[1] > view.maxY)) {
+            if (!isNaN(point[1])) {
+                view.maxY = point[1];
+            }
+        }
+    };
     const settings = _.extend({}, defaultOptions, options);
     const proj = projections[settings.projection];
     const φ0 = settings.φ0;
@@ -54,30 +77,12 @@ export default function (kml, options) {
                         point[0] = proj.x(Number(point[0]), φ0);
                         point[1] = proj.y(Number(point[1]));
                         // 0: x, 1: y, 2: z
-                        // Store the smallest and biggest coords to find out what the viewport is
-                        if ((view.minX === false) || (point[0] < view.minX)) {
-                            if (!isNaN(point[0])) {
-                                view.minX = point[0];
-                            }
-                        }
-                        if ((view.maxX === false) || (point[0] > view.maxX)) {
-                            if (!isNaN(point[0])) {
-                                view.maxX = point[0];
-                            }
-                        }
-                        if ((view.minY === false) || (point[1] < view.minY)) {
-                            if (!isNaN(point[1])) {
-                                view.minY = point[1];
-                            }
-                        }
-                        if ((view.maxY === false) || (point[1] > view.maxY)) {
-                            if (!isNaN(point[1])) {
-                                view.maxY = point[1];
-                            }
-                        }
+
+                        updateView(point); // update min/max X and Y
+
                         // LineTo ou MoveTo
                         let pointType = "L";
-                        if (j <= 0) { // si premier point, moveTo
+                        if (j <= 0) { // if 1st point, moveTo
                             pointType = "M";
                         }
                         tempKmlPolygon.points.push({
