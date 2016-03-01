@@ -34,7 +34,62 @@ exports.default = function (kml, options) {
             }
         }
     };
+
     var settings = _lodash2.default.extend({}, defaultOptions, options);
+    settings.precision = Number(settings.precision);
+    if (settings.precision < 0) {
+        settings.precision = 0; // avoid nasty bugs
+    }
+
+    // create a rounding function
+    var formatCoords = function (roundParam) {
+        if (settings.round === false) {
+            return function (coord) {
+                return coord;
+            }; // don't change anything
+        }
+        var precision = Number(roundParam);
+        return function (coord) {
+            return _lodash2.default.round(coord, precision);
+        };
+    }(settings.round);
+
+    // create a precision filter for a polygon
+    var createPrecisionFilter = function createPrecisionFilter(points) {
+        if (settings.precision === 0) {
+            return function () {
+                return true;
+            };
+        }
+        var meanX = _lodash2.default.mean(_lodash2.default.map(points, function (point) {
+            return point.x;
+        }));
+        var meanY = _lodash2.default.mean(_lodash2.default.map(points, function (point) {
+            return point.y;
+        }));
+        var acceptableDifferenceX = meanX * (settings.precision / 100);
+        var acceptableDifferenceY = meanY * (settings.precision / 100);
+        var prev = false;
+        return function (point) {
+            // if this is the first point, always return true
+            if (prev === false) {
+                prev = _lodash2.default.extend({}, point);
+                return true;
+            }
+            // if this is a moveTo point, always return true
+            if (point.type === "M") {
+                prev = _lodash2.default.extend({}, point);
+                return true;
+            }
+            // else if the difference in both X and Y is < acceptableDifference, don't use this point
+            if (Math.abs(prev.x - point.x) <= acceptableDifferenceX && Math.abs(prev.y - point.y) <= acceptableDifferenceY) {
+                return false;
+            }
+            // else, use the point
+            prev = _lodash2.default.extend({}, point);
+            return true;
+        };
+    };
     var proj = _projections2.default[settings.projection];
     var φ0 = settings.φ0;
     var dataPrefix = settings.dataPrefix;
@@ -138,8 +193,8 @@ exports.default = function (kml, options) {
             return {
                 points: v.points.map(function (vv) {
                     return {
-                        x: (vv.x + Xdiff) * multiplier,
-                        y: (vv.y + Ydiff) * multiplier,
+                        x: formatCoords((vv.x + Xdiff) * multiplier),
+                        y: formatCoords((vv.y + Ydiff) * multiplier),
                         z: vv.z,
                         type: vv.type
                     };
@@ -170,19 +225,22 @@ exports.default = function (kml, options) {
     // write placemarks as <path> elements
     _lodash2.default.each(kmlPlacemarks, function (placemark, k) {
         var attrs = {};
-        _lodash2.default.each(placemark.extendedData, function (data) {
+        _lodash2.default.each(_lodash2.default.filter(placemark.extendedData, settings.filterAttributes), function (data) {
             attrs[dataPrefix + data.name] = data.content;
         });
         // each polygon has all the placemark data... maybe group them in <g> ?
         _lodash2.default.each(placemark.polygons, function (polygon, kk) {
-            var pathData = _lodash2.default.reduce(polygon.points, function (path, point, index) {
+            var precisionFilter = createPrecisionFilter(polygon.points);
+            var pathData = _lodash2.default.reduce(_lodash2.default.filter(polygon.points, precisionFilter), function (path, point, index) {
                 var command = point.type;
                 return path + " " + command + " " + point.x + "," + point.y;
             }, "") + " z";
-            g.addChild(new _libxmljs2.default.Element(svg, "path").attr(_lodash2.default.extend({}, attrs, {
-                id: "poly_" + k + "_" + kk,
-                d: pathData
-            })));
+            var oAttributes = {};
+            if (!!settings.withId) {
+                _lodash2.default.extend(oAttributes, { id: "poly_" + k + "_" + kk });
+            }
+            _lodash2.default.extend(oAttributes, { d: pathData });
+            g.addChild(new _libxmljs2.default.Element(svg, "path").attr(_lodash2.default.extend({}, attrs, oAttributes)));
         });
     });
 
@@ -206,6 +264,13 @@ function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { de
 var defaultOptions = {
     φ0: 42, // used in equirectangular projection
     projection: "mercator",
-    dataPrefix: "data-"
+    dataPrefix: "data-",
+    filterAttributes: function filterAttributes(data) {
+        // callback to filter which attributes are kept in the output
+        return true;
+    },
+    round: false, // Decimal precision of coordinates. use to reduce filesize if you don't need the precision.
+    withId: true, // disable if you don't want an automatic `id` attribute on each path in the output
+    precision: 0 // drops a few points in exchange for filesize. See the precisionFilter() internal function for details
 };
 ;

@@ -5,7 +5,13 @@ import _ from "lodash";
 const defaultOptions = {
     φ0: 42, // used in equirectangular projection
     projection: "mercator",
-    dataPrefix: "data-"
+    dataPrefix: "data-",
+    filterAttributes: (data) => { // callback to filter which attributes are kept in the output
+        return true;
+    },
+    round: false, // Decimal precision of coordinates. use to reduce filesize if you don't need the precision.
+    withId: true, // disable if you don't want an automatic `id` attribute on each path in the output
+    precision: 0 // drops a few points in exchange for filesize. See the precisionFilter() internal function for details
 };
 export default function (kml, options) {
     const view = {
@@ -37,7 +43,53 @@ export default function (kml, options) {
             }
         }
     };
+
     const settings = _.extend({}, defaultOptions, options);
+    settings.precision = Number(settings.precision);
+    if (settings.precision < 0) {
+        settings.precision = 0; // avoid nasty bugs
+    }
+
+    // create a rounding function
+    const formatCoords = ((roundParam) => {
+        if (settings.round === false) {
+            return (coord) => coord; // don't change anything
+        }
+        const precision = Number(roundParam);
+        return (coord) => _.round(coord, precision);
+    })(settings.round);
+
+    // create a precision filter for a polygon
+    const createPrecisionFilter = (points) => {
+        if (settings.precision === 0) {
+            return () => true;
+        }
+        let meanX = _.mean(_.map(points, (point) => point.x));
+        let meanY = _.mean(_.map(points, (point) => point.y));
+        let acceptableDifferenceX = meanX * (settings.precision / 100);
+        let acceptableDifferenceY = meanY * (settings.precision / 100);
+        let prev = false;
+        return (point) => {
+            // if this is the first point, always return true
+            if (prev === false) {
+                prev = _.extend({}, point);
+                return true;
+            }
+            // if this is a moveTo point, always return true
+            if (point.type === "M") {
+                prev = _.extend({}, point);
+                return true;
+            }
+            // else if the difference in both X and Y is < acceptableDifference, don't use this point
+            if (Math.abs(prev.x - point.x) <= acceptableDifferenceX &&
+                Math.abs(prev.y - point.y) <= acceptableDifferenceY) {
+                return false;
+            }
+            // else, use the point
+            prev = _.extend({}, point);
+            return true;
+        };
+    };
     const proj = projections[settings.projection];
     const φ0 = settings.φ0;
     const dataPrefix = settings.dataPrefix;
@@ -139,8 +191,8 @@ export default function (kml, options) {
             return {
                 points: v.points.map((vv) => {
                     return {
-                        x: (vv.x + Xdiff) * multiplier,
-                        y: (vv.y + Ydiff) * multiplier,
+                        x: formatCoords((vv.x + Xdiff) * multiplier),
+                        y: formatCoords((vv.y + Ydiff) * multiplier),
                         z: (vv.z),
                         type: vv.type
                     };
@@ -173,20 +225,23 @@ export default function (kml, options) {
     // write placemarks as <path> elements
     _.each(kmlPlacemarks, (placemark, k) => {
         let attrs = {};
-        _.each(placemark.extendedData, (data) => {
+        _.each(_.filter(placemark.extendedData, settings.filterAttributes), (data) => {
             attrs[ dataPrefix + data.name] = data.content;
         });
         // each polygon has all the placemark data... maybe group them in <g> ?
         _.each(placemark.polygons, (polygon, kk) => {
-            let pathData = _.reduce(polygon.points, (path, point, index) => {
+            let precisionFilter = createPrecisionFilter(polygon.points);
+            let pathData = _.reduce(_.filter(polygon.points, precisionFilter), (path, point, index) => {
                 let command = point.type;
                 return path + " " + command + " " + point.x + "," + point.y;
             }, "") + " z";
+            let oAttributes = {};
+            if (!!settings.withId) {
+                _.extend(oAttributes, { id: "poly_" + k + "_" + kk });
+            }
+            _.extend(oAttributes, { d: pathData });
             g.addChild(new libxmljs.Element(svg, "path")
-                .attr(_.extend({}, attrs, {
-                id: "poly_" + k + "_" + kk,
-                d: pathData
-            })));
+                .attr(_.extend({}, attrs, oAttributes)));
         });
     });
 
