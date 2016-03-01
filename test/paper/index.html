@@ -9,11 +9,11 @@
     <script>
     document.addEventListener("DOMContentLoaded", function() {
         paper.setup(document.getElementById("cont"));
-        paper.project.importSVG("../output/output_2.svg", {
+        paper.project.importSVG("../output_paca_3.svg", {
             onImport: function(node, item) {
-                console.log(node);
                 item.fillColor = new paper.Color(1, 0, 0);
                 item.strokeColor = new paper.Color(0, 0, 0);
+                item.strokeWidth = 0.1;
             },
             onLoad: function(item) {
                 item.fitBounds(paper.project.view.bounds);

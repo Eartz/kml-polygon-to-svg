@@ -1,5 +1,6 @@
 import libxmljs from "libxmljs";
 import projections from "./projections.js";
+import dglspckr from "./douglas-peucker.js";
 import _ from "lodash";
 
 const defaultOptions = {
@@ -11,7 +12,9 @@ const defaultOptions = {
     },
     round: false, // Decimal precision of coordinates. use to reduce filesize if you don't need the precision.
     withId: true, // disable if you don't want an automatic `id` attribute on each path in the output
-    precision: 0 // drops a few points in exchange for filesize. See the precisionFilter() internal function for details
+    precision: 0, // drops a few points in exchange for filesize. See the precisionFilter() internal function for details
+    simplification: false,
+    simplificationTolerance: 3
 };
 export default function (kml, options) {
     const view = {
@@ -46,6 +49,7 @@ export default function (kml, options) {
 
     const settings = _.extend({}, defaultOptions, options);
     settings.precision = Number(settings.precision);
+    settings.simplificationTolerance = Number(settings.simplificationTolerance);
     if (settings.precision < 0) {
         settings.precision = 0; // avoid nasty bugs
     }
@@ -90,6 +94,14 @@ export default function (kml, options) {
             return true;
         };
     };
+    const simplificater = (points) => {
+        if (!settings.simplification) {
+            return (points) => points;
+        }
+        return (points) => {
+            return dglspckr(points, settings.simplificationTolerance);
+        };
+    };
     const proj = projections[settings.projection];
     const φ0 = settings.φ0;
     const dataPrefix = settings.dataPrefix;
@@ -120,7 +132,7 @@ export default function (kml, options) {
                             .map((node) => {
                                 return node.text().trim();
                             });
-                _.each(coordsGroups, (coords) => {
+                _.each(coordsGroups, (coords, groupIndex) => {
                     let points = coords.replace(/\t+/gm, " ").replace(/\n+/gm, " ").split(' ');
                     for (var j = 0, pl = points.length; j < pl; j++) {
                         var point = points[j].split(',');
@@ -141,7 +153,8 @@ export default function (kml, options) {
                             x: point[0],
                             y: point[1],
                             z: Number(point[2]),
-                            type: pointType
+                            type: pointType,
+                            groupId: "" + i + "_" + groupIndex // to fix missing MoveTos
                         });
                     }
                 });
@@ -194,7 +207,8 @@ export default function (kml, options) {
                         x: formatCoords((vv.x + Xdiff) * multiplier),
                         y: formatCoords((vv.y + Ydiff) * multiplier),
                         z: (vv.z),
-                        type: vv.type
+                        type: vv.type,
+                        groupId: vv.groupId
                     };
                 })
             };
@@ -230,9 +244,17 @@ export default function (kml, options) {
         });
         // each polygon has all the placemark data... maybe group them in <g> ?
         _.each(placemark.polygons, (polygon, kk) => {
+            let approximate = simplificater(polygon.points);
+            polygon.points = approximate(polygon.points);
             let precisionFilter = createPrecisionFilter(polygon.points);
+            let prevGroupId = false;
             let pathData = _.reduce(_.filter(polygon.points, precisionFilter), (path, point, index) => {
                 let command = point.type;
+                if (prevGroupId !== point.groupId && command !== "M") {
+                    // force moveTo
+                    command = "M";
+                }
+                prevGroupId = point.groupId;
                 return path + " " + command + " " + point.x + "," + point.y;
             }, "") + " z";
             let oAttributes = {};

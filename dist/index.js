@@ -37,6 +37,7 @@ exports.default = function (kml, options) {
 
     var settings = _lodash2.default.extend({}, defaultOptions, options);
     settings.precision = Number(settings.precision);
+    settings.simplificationTolerance = Number(settings.simplificationTolerance);
     if (settings.precision < 0) {
         settings.precision = 0; // avoid nasty bugs
     }
@@ -90,6 +91,16 @@ exports.default = function (kml, options) {
             return true;
         };
     };
+    var simplificater = function simplificater(points) {
+        if (!settings.simplification) {
+            return function (points) {
+                return points;
+            };
+        }
+        return function (points) {
+            return (0, _douglasPeucker2.default)(points, settings.simplificationTolerance);
+        };
+    };
     var proj = _projections2.default[settings.projection];
     var φ0 = settings.φ0;
     var dataPrefix = settings.dataPrefix;
@@ -118,7 +129,7 @@ exports.default = function (kml, options) {
                 var coordsGroups = polygons[i].find(".//kml:coordinates", { kml: "http://www.opengis.net/kml/2.2" }).map(function (node) {
                     return node.text().trim();
                 });
-                _lodash2.default.each(coordsGroups, function (coords) {
+                _lodash2.default.each(coordsGroups, function (coords, groupIndex) {
                     var points = coords.replace(/\t+/gm, " ").replace(/\n+/gm, " ").split(' ');
                     for (var j = 0, pl = points.length; j < pl; j++) {
                         var point = points[j].split(',');
@@ -140,7 +151,8 @@ exports.default = function (kml, options) {
                             x: point[0],
                             y: point[1],
                             z: Number(point[2]),
-                            type: pointType
+                            type: pointType,
+                            groupId: "" + i + "_" + groupIndex // to fix missing MoveTos
                         });
                     }
                 });
@@ -196,7 +208,8 @@ exports.default = function (kml, options) {
                         x: formatCoords((vv.x + Xdiff) * multiplier),
                         y: formatCoords((vv.y + Ydiff) * multiplier),
                         z: vv.z,
-                        type: vv.type
+                        type: vv.type,
+                        groupId: vv.groupId
                     };
                 })
             };
@@ -230,9 +243,17 @@ exports.default = function (kml, options) {
         });
         // each polygon has all the placemark data... maybe group them in <g> ?
         _lodash2.default.each(placemark.polygons, function (polygon, kk) {
+            var approximate = simplificater(polygon.points);
+            polygon.points = approximate(polygon.points);
             var precisionFilter = createPrecisionFilter(polygon.points);
+            var prevGroupId = false;
             var pathData = _lodash2.default.reduce(_lodash2.default.filter(polygon.points, precisionFilter), function (path, point, index) {
                 var command = point.type;
+                if (prevGroupId !== point.groupId && command !== "M") {
+                    // force moveTo
+                    command = "M";
+                }
+                prevGroupId = point.groupId;
                 return path + " " + command + " " + point.x + "," + point.y;
             }, "") + " z";
             var oAttributes = {};
@@ -255,6 +276,10 @@ var _projections = require("./projections.js");
 
 var _projections2 = _interopRequireDefault(_projections);
 
+var _douglasPeucker = require("./douglas-peucker.js");
+
+var _douglasPeucker2 = _interopRequireDefault(_douglasPeucker);
+
 var _lodash = require("lodash");
 
 var _lodash2 = _interopRequireDefault(_lodash);
@@ -271,6 +296,8 @@ var defaultOptions = {
     },
     round: false, // Decimal precision of coordinates. use to reduce filesize if you don't need the precision.
     withId: true, // disable if you don't want an automatic `id` attribute on each path in the output
-    precision: 0 // drops a few points in exchange for filesize. See the precisionFilter() internal function for details
+    precision: 0, // drops a few points in exchange for filesize. See the precisionFilter() internal function for details
+    simplification: false,
+    simplificationTolerance: 3
 };
 ;
