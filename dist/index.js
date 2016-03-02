@@ -41,7 +41,12 @@ exports.default = function (kml, options) {
     if (settings.precision < 0) {
         settings.precision = 0; // avoid nasty bugs
     }
-
+    var coordsTransform = function coordsTransform(points) {
+        return point;
+    };
+    if (typeof settings.coordsTransform === "function") {
+        coordsTransform = settings.coordsTransform;
+    }
     // create a rounding function
     var formatCoords = function (roundParam) {
         if (settings.round === false) {
@@ -244,8 +249,8 @@ exports.default = function (kml, options) {
         // each polygon has all the placemark data... maybe group them in <g> ?
         _lodash2.default.each(placemark.polygons, function (polygon, kk) {
             var approximate = simplificater(polygon.points);
-            polygon.points = approximate(polygon.points);
-            var precisionFilter = createPrecisionFilter(polygon.points);
+            polygon.points = approximate(polygon.points); // use approximation algorithm
+            var precisionFilter = createPrecisionFilter(polygon.points); // create precision filter : skip a few points
             var prevGroupId = false;
             var pathData = _lodash2.default.reduce(_lodash2.default.filter(polygon.points, precisionFilter), function (path, point, index) {
                 var command = point.type;
@@ -254,6 +259,7 @@ exports.default = function (kml, options) {
                     command = "M";
                 }
                 prevGroupId = point.groupId;
+                point = coordsTransform(point, newBoundaries, formatCoords);
                 return path + " " + command + " " + point.x + "," + point.y;
             }, "") + " z";
             var oAttributes = {};
@@ -298,6 +304,9 @@ var defaultOptions = {
     withId: true, // disable if you don't want an automatic `id` attribute on each path in the output
     precision: 0, // drops a few points in exchange for filesize. See the precisionFilter() internal function for details
     simplification: false,
-    simplificationTolerance: 3
+    simplificationTolerance: 3,
+    coordsTransform: function coordsTransform(points, view) {
+        return point;
+    } // use this to change coords on output, e.g. axial symmetry
 };
 ;

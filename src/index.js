@@ -14,7 +14,8 @@ const defaultOptions = {
     withId: true, // disable if you don't want an automatic `id` attribute on each path in the output
     precision: 0, // drops a few points in exchange for filesize. See the precisionFilter() internal function for details
     simplification: false,
-    simplificationTolerance: 3
+    simplificationTolerance: 3,
+    coordsTransform: (points, view) => point // use this to change coords on output, e.g. axial symmetry
 };
 export default function (kml, options) {
     const view = {
@@ -53,7 +54,10 @@ export default function (kml, options) {
     if (settings.precision < 0) {
         settings.precision = 0; // avoid nasty bugs
     }
-
+    let coordsTransform = (points) => point;
+    if (typeof settings.coordsTransform === "function") {
+        coordsTransform = settings.coordsTransform;
+    }
     // create a rounding function
     const formatCoords = ((roundParam) => {
         if (settings.round === false) {
@@ -245,8 +249,8 @@ export default function (kml, options) {
         // each polygon has all the placemark data... maybe group them in <g> ?
         _.each(placemark.polygons, (polygon, kk) => {
             let approximate = simplificater(polygon.points);
-            polygon.points = approximate(polygon.points);
-            let precisionFilter = createPrecisionFilter(polygon.points);
+            polygon.points = approximate(polygon.points); // use approximation algorithm
+            let precisionFilter = createPrecisionFilter(polygon.points); // create precision filter : skip a few points
             let prevGroupId = false;
             let pathData = _.reduce(_.filter(polygon.points, precisionFilter), (path, point, index) => {
                 let command = point.type;
@@ -255,6 +259,7 @@ export default function (kml, options) {
                     command = "M";
                 }
                 prevGroupId = point.groupId;
+                point = coordsTransform(point, newBoundaries, formatCoords);
                 return path + " " + command + " " + point.x + "," + point.y;
             }, "") + " z";
             let oAttributes = {};
