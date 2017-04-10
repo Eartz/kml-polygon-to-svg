@@ -15,6 +15,7 @@ const defaultOptions = {
     precision: 0, // drops a few points in exchange for filesize. See the precisionFilter() internal function for details
     simplification: false,
     simplificationTolerance: 3,
+    dataTransform: false,
     coordsTransform: (points, view) => point // use this to change coords on output, e.g. axial symmetry
 };
 export default function (kml, options) {
@@ -109,6 +110,13 @@ export default function (kml, options) {
     const proj = projections[settings.projection];
     const φ0 = settings.φ0;
     const dataPrefix = settings.dataPrefix;
+
+    let dataTransform = (name, value) => {
+        return { name: dataPrefix + name, value: value };
+    };
+    if (typeof settings.dataTransform === "function") {
+        dataTransform = settings.dataTransform;
+    }
 
 
     let kmlPlacemarks = [];
@@ -244,7 +252,10 @@ export default function (kml, options) {
     _.each(kmlPlacemarks, (placemark, k) => {
         let attrs = {};
         _.each(_.filter(placemark.extendedData, settings.filterAttributes), (data) => {
-            attrs[ dataPrefix + data.name] = data.content;
+            let transformedData = dataTransform(data.name, data.content);
+            if (!!transformedData) {
+                attrs[ transformedData.name ] = transformedData.value;
+            }
         });
         // each polygon has all the placemark data... maybe group them in <g> ?
         _.each(placemark.polygons, (polygon, kk) => {

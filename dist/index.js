@@ -110,6 +110,13 @@ exports.default = function (kml, options) {
     var φ0 = settings.φ0;
     var dataPrefix = settings.dataPrefix;
 
+    var dataTransform = function dataTransform(name, value) {
+        return { name: dataPrefix + name, value: value };
+    };
+    if (typeof settings.dataTransform === "function") {
+        dataTransform = settings.dataTransform;
+    }
+
     var kmlPlacemarks = [];
     var doc = _libxmljs2.default.parseXml(kml);
 
@@ -244,7 +251,10 @@ exports.default = function (kml, options) {
     _lodash2.default.each(kmlPlacemarks, function (placemark, k) {
         var attrs = {};
         _lodash2.default.each(_lodash2.default.filter(placemark.extendedData, settings.filterAttributes), function (data) {
-            attrs[dataPrefix + data.name] = data.content;
+            var transformedData = dataTransform(data.name, data.content);
+            if (!!transformedData) {
+                attrs[transformedData.name] = transformedData.value;
+            }
         });
         // each polygon has all the placemark data... maybe group them in <g> ?
         _lodash2.default.each(placemark.polygons, function (polygon, kk) {
@@ -305,6 +315,7 @@ var defaultOptions = {
     precision: 0, // drops a few points in exchange for filesize. See the precisionFilter() internal function for details
     simplification: false,
     simplificationTolerance: 3,
+    dataTransform: false,
     coordsTransform: function coordsTransform(points, view) {
         return point;
     } // use this to change coords on output, e.g. axial symmetry

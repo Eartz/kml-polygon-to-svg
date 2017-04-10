@@ -10,6 +10,15 @@ fs.writeFileSync(outputFileName, KPTS(kml, {
     filterAttributes: function(data) {
         return (data.name === "INSEE_COM");
     },
+    dataTransform: function(name, value) {
+        if (name === "INSEE_COM") {
+            return {
+                name: "insee",
+                value: value
+            };
+        }
+        return { name, value };
+    },
     round: 1,
     withId: false,
     precision: 0,
