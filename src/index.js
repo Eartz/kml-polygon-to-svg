@@ -168,7 +168,7 @@ export default function (kml, options) {
             }
         }
         // store extended data
-        let datas = placemark.find('.//kml:Data', {kml: "http://www.opengis.net/kml/2.2"});
+        let datas = placemark.find('.//kml:Data | .//kml:SimpleData', {kml: "http://www.opengis.net/kml/2.2"});
         if (datas.length > 0) {
             kmlPlacemark.extendedData = _.map(datas, (data) => {
                 return {

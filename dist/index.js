@@ -170,7 +170,7 @@ exports.default = function (kml, options) {
             }
         }
         // store extended data
-        var datas = placemark.find('.//kml:Data', { kml: "http://www.opengis.net/kml/2.2" });
+        var datas = placemark.find('.//kml:Data | .//kml:SimpleData', { kml: "http://www.opengis.net/kml/2.2" });
         if (datas.length > 0) {
             kmlPlacemark.extendedData = _lodash2.default.map(datas, function (data) {
                 return {

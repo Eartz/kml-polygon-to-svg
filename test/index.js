@@ -2,8 +2,8 @@ var KPTS = require("../dist/index.js").default;
 var fs = require("fs");
 
 
-var kmlFileName = "./paca.kml";
-var outputFileName = "./output_paca_4.svg";
+var kmlFileName = "./reunion_communes.kml";
+var outputFileName = "./reunion_communes.svg";
 
 var kml = fs.readFileSync(kmlFileName, 'utf8');
 fs.writeFileSync(outputFileName, KPTS(kml, {

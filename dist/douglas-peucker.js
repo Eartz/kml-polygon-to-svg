@@ -5,7 +5,7 @@ Object.defineProperty(exports, "__esModule", {
 });
 
 exports.default = function (points, tolerance) {
-    // helper classes
+    // helper classes 
     var Vector = function Vector(x, y) {
         this.x = x;
         this.y = y;
@@ -51,7 +51,7 @@ exports.default = function (points, tolerance) {
         }
         var returnPoints = [],
 
-        // make line from start to end
+        // make line from start to end 
         line = new Line(points[0], points[points.length - 1]),
 
         // find the largest distance from intermediate poitns to this line
@@ -66,11 +66,11 @@ exports.default = function (points, tolerance) {
             }
         }
 
-        // check if the max distance is greater than our tollerance allows
+        // check if the max distance is greater than our tollerance allows 
         if (maxDistance >= tolerance) {
             p = points[maxDistanceIndex];
             line.distanceToPoint(p, true);
-            // include this point in the output
+            // include this point in the output 
             returnPoints = returnPoints.concat(douglasPeucker(points.slice(0, maxDistanceIndex + 1), tolerance));
             // returnPoints.push( points[maxDistanceIndex] );
             returnPoints = returnPoints.concat(douglasPeucker(points.slice(maxDistanceIndex, points.length), tolerance));
